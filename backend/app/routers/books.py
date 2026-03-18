@@ -1,5 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
+from typing import Optional
 from app.database import get_db
 from app.models.book import Book as BookModel
 from app.schemas.book import BookCreate, BookOut
@@ -28,8 +29,24 @@ def create_book(
     return new_book
 
 @router.get("/", response_model=list[BookOut])
-def read_books(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    books = db.query(BookModel).offset(skip).limit(limit).all()
+def read_books(
+    skip: int = 0, 
+    limit: int = 100, 
+    title: Optional[str] = None,
+    author: Optional[str] = None,
+    is_available: Optional[bool] = None,
+    db: Session = Depends(get_db)
+):
+    query = db.query(BookModel)
+    
+    if title:
+        query = query.filter(BookModel.title.ilike(f"%{title}%"))
+    if author:
+        query = query.filter(BookModel.author.ilike(f"%{author}%"))
+    if is_available is not None:
+        query = query.filter(BookModel.is_available == is_available)
+        
+    books = query.offset(skip).limit(limit).all()
     return books
 
 @router.get("/{book_id}", response_model=BookOut)
